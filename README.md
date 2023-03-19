@@ -5,13 +5,14 @@
 
 * DB connection seems only to work best if module runs already at start:
   * First compilation => Upload and restart
-  * Further compilation => Upgrade
+  * Further compilation => Upgrade (Problems? => See Troubleshooting)
 * Troubleshooting: `java.lang.IllegalStateException: EntityManager is closed` => DB connection was not wired correctly => restart openmrs
 
 * Setup
   * Create `Concept Sources`:  `Disposition Location` & `Disposition Visit Type` and create respectively `Reference Terms` the location and visit type same in code and name.
   * Create `Reference Term` of source `org.openmrs.module.emrapi`.
   * Create a new dispositon `Concept` and link it to the `Disposition` concept and add mappings of all create reference terms.
+  * Rebuild Search Index
 
 # Sources
 https://github.com/openmrs/openmrs-module-atomfeed/

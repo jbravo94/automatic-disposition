@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.aop.AfterReturningAdvice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.openmrs.api.context.Context;
 
 import java.lang.reflect.Method;
 import java.net.URI;
