@@ -2,7 +2,11 @@ package org.openmrs.module.automaticdisposition.advice;
 
 import org.apache.commons.beanutils.PropertyUtils;
 import org.ict4h.atomfeed.transaction.AFTransactionWorkWithoutResult;
+import org.openmrs.Concept;
+import org.openmrs.ConceptMap;
+import org.openmrs.ConceptReferenceTerm;
 import org.openmrs.Encounter;
+import org.openmrs.Obs;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.automaticdisposition.api.impl.TransactionManager;
@@ -18,7 +22,9 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class EncounterSaveAdvice implements AfterReturningAdvice {
@@ -54,6 +60,43 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 				@Override
 				protected void doInTransaction() {
 					Encounter encounter = encounterService.getEncounterByUuid(encounterUuid);
+					
+					Set<Obs> allObs = encounter.getAllObs();
+					
+					for (Obs obs : allObs) {
+						String name = obs.getConcept().getName().getName();
+						
+						if ("Disposition".equals(name)) {
+							Concept valueCoded = obs.getValueCoded();
+							
+							Collection<ConceptMap> conceptMappings = valueCoded.getConceptMappings();
+							
+							String dispositonLocation = null;
+							String dispositonvisitType = null;
+							
+							for (ConceptMap conceptMap : conceptMappings) {
+								
+								ConceptReferenceTerm conceptReferenceTerm = conceptMap.getConceptReferenceTerm();
+								
+								String source = conceptReferenceTerm.getConceptSource().getName();
+								
+								if ("Disposition Location".equals(source)) {
+									dispositonLocation = conceptReferenceTerm.getCode();
+								}
+								
+								if ("Disposition Visit Type".equals(source)) {
+									dispositonvisitType = conceptReferenceTerm.getCode();
+								}
+							}
+							
+							if (dispositonLocation != null && dispositonvisitType != null) {
+								LOGGER.error("Move to " + dispositonLocation + " and start visit via " + dispositonvisitType);
+							}
+						}
+						
+						LOGGER.info(name);
+					}
+					
 					LOGGER.error(encounter.toString());
 				}
 				
