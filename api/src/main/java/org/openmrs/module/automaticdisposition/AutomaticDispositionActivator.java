@@ -12,8 +12,6 @@ package org.openmrs.module.automaticdisposition;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.module.BaseModuleActivator;
-import org.openmrs.module.automaticdisposition.api.impl.AutomaticDispositionEventHandler;
-import org.openmrs.event.Event;
 
 /**
  * This class contains the logic that is run every time this module is either started or shutdown
@@ -26,7 +24,6 @@ public class AutomaticDispositionActivator extends BaseModuleActivator {
 	 * @see #started()
 	 */
 	public void started() {
-		Event.subscribe(org.openmrs.OpenmrsObject.class, null, new AutomaticDispositionEventHandler());
 		log.info("Started Automatic Disposition");
 	}
 	
@@ -34,7 +31,6 @@ public class AutomaticDispositionActivator extends BaseModuleActivator {
 	 * @see #shutdown()
 	 */
 	public void shutdown() {
-		Event.unsubscribe(org.openmrs.OpenmrsObject.class, null, new AutomaticDispositionEventHandler());
 		log.info("Shutdown Automatic Disposition");
 	}
 	

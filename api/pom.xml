@@ -12,9 +12,5 @@
 	<name>Automatic Disposition API</name>
 	<description>API project for Automatic Disposition</description>
 	<dependencies>
-		<dependency>
-			<groupId>org.openmrs</groupId>
-			<artifactId>event-api</artifactId>
-		</dependency>
 	</dependencies>
 </project>

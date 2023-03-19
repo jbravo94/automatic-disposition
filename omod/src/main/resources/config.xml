@@ -19,6 +19,7 @@
 	
 	<require_version>${openmrsPlatformVersion}</require_version>
 
+	<!--
 	<require_modules>
 		<require_module version="${appframeworkVersion}">
 			org.openmrs.module.appframework
@@ -33,17 +34,24 @@
 			org.openmrs.module.appui
 		</require_module>
 	</require_modules>
-	
+	-->
+
 	<!-- Extensions -->
+	<!--
 	<extension>
 		<point>org.openmrs.admin.list</point>
 		<class>org.openmrs.module.automaticdisposition.extension.html.AdminList</class>
 	</extension>
+	-->
 
 	<aware_of_modules>
 		<aware_of_module>org.openmrs.module.legacyui</aware_of_module>
 	</aware_of_modules>
 	
+	<advice>
+        <point>org.openmrs.module.emrapi.encounter.EmrEncounterService</point>
+        <class>org.openmrs.module.automaticdisposition.advice.EncounterSaveAdvice</class>
+    </advice>
 	
 	<!-- AOP
 	<advice>

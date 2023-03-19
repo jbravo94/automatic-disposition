@@ -35,10 +35,7 @@
 			<artifactId>uiframework-api</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.openmrs</groupId>
-			<artifactId>event-api</artifactId>
-		</dependency>
+		
 	</dependencies>
 
 	<build>
