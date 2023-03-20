@@ -20,6 +20,7 @@ OMRS_DEV_DEBUG_PORT=1044
 * Create `Reference Term` of source `org.openmrs.module.emrapi`.
 * Create a new dispositon `Concept` and link it to the `Disposition` concept and add mappings of all create reference terms.
 * Rebuild Search Index
+* Ensure that the referenced location has a `Location Tag` of `Visit Location`.
 
 # Notes
 * DB connection seems only to work best if module runs already at start:
