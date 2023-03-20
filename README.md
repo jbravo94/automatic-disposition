@@ -2,6 +2,8 @@
 
 Because Bahmni Disposition Feature is except for bed management a no-op, this module enables automatic disposition to different bahmni locations and start different visits automatically with minimal configuration.
 
+[![Automatic Disposition](misc/Disposition-Configuration.png?raw=true "Automatic Disposition")](https://youtu.be/8KgqzevWyiI "Automatic Disposition")
+
 # Build
 * Run `mvn clean install`
 
