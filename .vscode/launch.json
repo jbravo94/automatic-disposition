@@ -6,14 +6,8 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Current File",
-            "request": "launch",
-            "mainClass": "${file}"
-        },
-        {
-            "type": "java",
             "name": "Debug (Attach)",
-            "projectName": "MyApplication",
+            "projectName": "Automatic Disposition",
             "request": "attach",
             "hostName": "localhost",
             "port": 1044

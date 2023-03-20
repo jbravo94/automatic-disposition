@@ -25,34 +25,4 @@
 
     <context:component-scan base-package="org.openmrs.module.automaticdisposition" />
 
-    <!-- Wraps AutomaticDispositionService methods in DB transactions and OpenMRS interceptors,
-    which set audit info like dateCreated, changedBy, etc.-->
-    <bean id="automaticdisposition.AutomaticDispositionService"
-            class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
-        <property name="transactionManager">
-            <ref bean="transactionManager" />
-        </property>
-        <property name="target">
-            <bean class="org.openmrs.module.automaticdisposition.api.impl.AutomaticDispositionServiceImpl">
-                <property name="dao" ref="automaticdisposition.AutomaticDispositionDao" />
-            </bean>
-        </property>
-        <property name="preInterceptors">
-            <ref bean="serviceInterceptors" />
-        </property>
-        <property name="transactionAttributeSource">
-            <ref bean="transactionAttributeSource" />
-        </property>
-    </bean>
-
-    <!-- Adds AutomaticDispositionService to OpenMRS context so it can be accessed
-    calling Context.getService(AutomaticDispositionService.class) -->
-    <bean parent="serviceContext">
-        <property name="moduleService">
-            <list>
-                <value>org.openmrs.module.automaticdisposition.api.AutomaticDispositionService</value>
-                <ref bean="automaticdisposition.AutomaticDispositionService" />
-            </list>
-        </property>
-    </bean>
 </beans>

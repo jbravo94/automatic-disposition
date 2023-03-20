@@ -7,7 +7,7 @@
 	<name>${project.parent.name}</name>
 	<version>${project.parent.version}</version>
 	<package>org.openmrs.module.automaticdisposition</package>
-	<author>johnny</author>
+	<author>Johannes Heinzl</author>
 	<description>
 			${project.parent.description}
 	</description>
@@ -18,31 +18,6 @@
 	<!-- /Base Module Properties -->
 	
 	<require_version>${openmrsPlatformVersion}</require_version>
-
-	<!--
-	<require_modules>
-		<require_module version="${appframeworkVersion}">
-			org.openmrs.module.appframework
-		</require_module>
-		<require_module version="${uiframeworkVersion}">
-			org.openmrs.module.uiframework
-		</require_module>
-		<require_module version="${uicommonsModuleVersion}">
-			org.openmrs.module.uicommons
-		</require_module>
-		<require_module version="${appuiVersion}">
-			org.openmrs.module.appui
-		</require_module>
-	</require_modules>
-	-->
-
-	<!-- Extensions -->
-	<!--
-	<extension>
-		<point>org.openmrs.admin.list</point>
-		<class>org.openmrs.module.automaticdisposition.extension.html.AdminList</class>
-	</extension>
-	-->
 
 	<aware_of_modules>
 		<aware_of_module>org.openmrs.module.legacyui</aware_of_module>
@@ -115,14 +90,7 @@
 		<lang>en</lang>
 		<file>messages.properties</file>
 	</messages>
-	<messages>
-		<lang>fr</lang>
-		<file>messages_fr.properties</file>
-	</messages>
-	<messages>
-		<lang>es</lang>
-		<file>messages_es.properties</file>
-	</messages>
+
 	<!-- /Internationalization -->
 	
 </module>

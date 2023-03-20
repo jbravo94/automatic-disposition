@@ -1,18 +1,29 @@
+# Introduction
+
+Because Bahmni Disposition Feature is except for bed management a no-op, this module enables automatic disposition to different bahmni locations and start different visits automatically with minimal configuration.
+
 # Build
-* `mvn -DskipTests clean install`
+* Run `mvn clean install`
+
+# Testing
+When using Bahmni Docker (https://bahmni.atlassian.net/wiki/spaces/BAH/pages/3117744129/Getting+Started+Quickly+with+Bahmni+on+Docker#Running-Bahmni-Standard), following parameter must be enabled to allow omod module upload and remote debugging in `.env` file:
+
+```
+OPENMRS_MODULE_WEB_ADMIN='true'
+OMRS_DEV_DEBUG_PORT=1044
+```
+
+# Setup
+* Create `Concept Sources`:  `Disposition Location` & `Disposition Visit Type` and create respectively `Reference Terms` the location and visit type same in code and name.
+* Create `Reference Term` of source `org.openmrs.module.emrapi`.
+* Create a new dispositon `Concept` and link it to the `Disposition` concept and add mappings of all create reference terms.
+* Rebuild Search Index
 
 # Notes
-
 * DB connection seems only to work best if module runs already at start:
   * First compilation => Upload and restart
   * Further compilation => Upgrade (Problems? => See Troubleshooting)
 * Troubleshooting: `java.lang.IllegalStateException: EntityManager is closed` => DB connection was not wired correctly => restart openmrs
-
-* Setup
-  * Create `Concept Sources`:  `Disposition Location` & `Disposition Visit Type` and create respectively `Reference Terms` the location and visit type same in code and name.
-  * Create `Reference Term` of source `org.openmrs.module.emrapi`.
-  * Create a new dispositon `Concept` and link it to the `Disposition` concept and add mappings of all create reference terms.
-  * Rebuild Search Index
 
 # Sources
 https://github.com/openmrs/openmrs-module-atomfeed/

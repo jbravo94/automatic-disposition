@@ -1,4 +1,4 @@
-package org.openmrs.module.automaticdisposition.api.impl;
+package org.openmrs.module.automaticdisposition.persistence;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;

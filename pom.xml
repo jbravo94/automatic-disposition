@@ -13,7 +13,7 @@
 	<version>1.0.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>Automatic Disposition</name>
-	<description>no description</description>
+	<description>This module enables automatic disposition within a single Bahmni installation.</description>
 
 	<url>https://wiki.openmrs.org/x/FQ4z</url>
 
