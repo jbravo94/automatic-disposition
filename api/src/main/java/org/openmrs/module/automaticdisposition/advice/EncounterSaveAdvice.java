@@ -2,7 +2,6 @@ package org.openmrs.module.automaticdisposition.advice;
 
 import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.ict4h.atomfeed.transaction.AFTransactionWorkWithoutResult;
 import org.openmrs.Concept;
 import org.openmrs.ConceptMap;
 import org.openmrs.ConceptReferenceTerm;
@@ -17,11 +16,15 @@ import org.openmrs.api.LocationService;
 import org.openmrs.api.VisitService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.automaticdisposition.exception.DispositionAbortedException;
-import org.openmrs.module.automaticdisposition.persistence.TransactionManager;
+import org.openmrs.module.automaticdisposition.exception.DispositionPreconditionNotMetException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.AfterReturningAdvice;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+
 import static org.openmrs.module.automaticdisposition.AutomaticDispositionConstants.*;
 
 import java.lang.reflect.Method;
@@ -41,17 +44,22 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 	
 	private static final String SAVE_METHOD = "save";
 	
-	private final TransactionManager transactionManager;
+	private final PlatformTransactionManager platformTransactionManager;
 	
 	private final EncounterService encounterService;
 	
 	private final VisitService visitService;
 	
+	private final DefaultTransactionDefinition definition;
+	
 	private final LocationService locationService;
 	
 	public EncounterSaveAdvice() throws SQLException {
-		PlatformTransactionManager platformTransactionManager = getSpringPlatformTransactionManager();
-		transactionManager = new TransactionManager(platformTransactionManager);
+		
+		definition = new DefaultTransactionDefinition();
+		definition.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
+		
+		platformTransactionManager = getSpringPlatformTransactionManager();
 		encounterService = Context.getEncounterService();
 		visitService = Context.getVisitService();
 		locationService = Context.getLocationService();
@@ -64,50 +72,55 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			Object encounterUuidObject = PropertyUtils.getProperty(returnValue, "encounterUuid");
 			String encounterUuid = encounterUuidObject.toString();
 			
-			transactionManager.executeWithTransaction(new AFTransactionWorkWithoutResult() {
+			TransactionStatus status = platformTransactionManager.getTransaction(definition);
+			
+			try {
+				executeLogicForEncounterUuid(encounterUuid);
+				platformTransactionManager.commit(status);
+			}
+			catch (Exception ex) {
+				LOGGER.error("Error occured in transaction. Trying to rollback.", ex);
+				platformTransactionManager.rollback(status);
 				
-				@Override
-				protected void doInTransaction() {
-					LOGGER.info("Starting patient disposition.");
-					
-					try {
-						Encounter encounter = encounterService.getEncounterByUuid(encounterUuid);
-						Patient patient = encounter.getPatient();
-						Visit visit = encounter.getVisit();
-						
-						Obs dispositionObs = findDispositionObs(encounter);
-						
-						Pair<String, String> dispositionLocationAndVisitType = findDispositionLocationAndVisitTypeMappings(dispositionObs);
-						String dispositonLocation = dispositionLocationAndVisitType.getLeft();
-						String dispositonVisitType = dispositionLocationAndVisitType.getRight();
-						
-						Location actualDispositonLocation = findLocation(locationService, dispositonLocation);
-						VisitType actualDispositonVisitType = findVisitType(visitService, dispositonVisitType);
-						
-						Visit dispositionedVisit = new Visit(patient, actualDispositonVisitType, new Date());
-						dispositionedVisit.setLocation(actualDispositonLocation);
-						
-						LOGGER.info("Trying to move to " + dispositonLocation + " and start visit via "
-						        + dispositonVisitType);
-						
-						visitService.endVisit(visit, new Date());
-						visitService.saveVisit(dispositionedVisit);
-						
-					}
-					catch (DispositionAbortedException e) {
-						LOGGER.error(
-						    "Disposition was aborted because precondition were not met. Look at the stacktrace for further information.",
-						    e);
-					}
-					
-					LOGGER.info("Successfully performed patient disposition.");
-				}
-				
-				@Override
-				public PropagationDefinition getTxPropagationDefinition() {
-					return PropagationDefinition.PROPAGATION_REQUIRED;
-				}
-			});
+				LOGGER.info("Successfully rolled back erroneous transaction.");
+			}
+		}
+	}
+	
+	private void executeLogicForEncounterUuid(String encounterUuid) {
+		LOGGER.info("Starting patient disposition.");
+		
+		try {
+			Encounter encounter = encounterService.getEncounterByUuid(encounterUuid);
+			Patient patient = encounter.getPatient();
+			Visit visit = encounter.getVisit();
+			
+			Obs dispositionObs = findDispositionObs(encounter);
+			
+			Pair<String, String> dispositionLocationAndVisitType = findDispositionLocationAndVisitTypeMappings(dispositionObs);
+			String dispositonLocation = dispositionLocationAndVisitType.getLeft();
+			String dispositonVisitType = dispositionLocationAndVisitType.getRight();
+			
+			Location actualDispositonLocation = findLocation(locationService, dispositonLocation);
+			VisitType actualDispositonVisitType = findVisitType(visitService, dispositonVisitType);
+			
+			Visit dispositionedVisit = new Visit(patient, actualDispositonVisitType, new Date());
+			dispositionedVisit.setLocation(actualDispositonLocation);
+			
+			LOGGER.info("Trying to move to " + dispositonLocation + " and start visit via " + dispositonVisitType);
+			
+			visitService.endVisit(visit, new Date());
+			visitService.saveVisit(dispositionedVisit);
+			LOGGER.info("Successfully performed patient disposition.");
+			
+		}
+		catch (DispositionPreconditionNotMetException e) {
+			LOGGER.info(
+			    "Disposition was aborted because precondition were not met. Look at the stacktrace for further information.",
+			    e);
+		}
+		catch (DispositionAbortedException e) {
+			LOGGER.error("Disposition was aborted. Look at the stacktrace for further information.", e);
 		}
 	}
 	
@@ -154,7 +167,7 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			}
 		}
 		
-		throw new DispositionAbortedException("Could not find disposition obs. No action needed.");
+		throw new DispositionPreconditionNotMetException("Could not find disposition obs. No action needed.");
 	}
 	
 	private VisitType findVisitType(VisitService visitService, String dispositonVisitType)

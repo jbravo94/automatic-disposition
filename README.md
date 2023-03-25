@@ -40,3 +40,4 @@ https://wiki.openmrs.org/display/docs/Event+Module
 https://wiki.openmrs.org/display/docs/Create+and+Deploy+Your+First+OpenMRS+Module
 https://wiki.openmrs.org/display/docs/Set+Up+OpenMRS+Server+with+OpenMRS+SDK+and+Docker#SetUpOpenMRSServerwithOpenMRSSDKandDocker-InstallOpenMRSSDK
 https://guide.openmrs.org/en/Configuration/customizing-openmrs-with-plug-in-modules.html
+https://www.baeldung.com/spring-programmatic-transaction-management
