@@ -11,12 +11,15 @@ import org.openmrs.Obs;
 import org.openmrs.Patient;
 import org.openmrs.Visit;
 import org.openmrs.VisitType;
+import org.openmrs.api.AdministrationService;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.LocationService;
+import org.openmrs.api.ObsService;
 import org.openmrs.api.VisitService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.automaticdisposition.exception.DispositionAbortedException;
 import org.openmrs.module.automaticdisposition.exception.DispositionPreconditionNotMetException;
+import org.openmrs.module.emrapi.test.builder.ObsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.AfterReturningAdvice;
@@ -51,8 +54,12 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 	private final VisitService visitService;
 	
 	private final DefaultTransactionDefinition definition;
+
+	private final ObsService obsService;
 	
 	private final LocationService locationService;
+
+	private final AdministrationService	administrationService;
 	
 	public EncounterSaveAdvice() throws SQLException {
 		
@@ -63,6 +70,8 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		encounterService = Context.getEncounterService();
 		visitService = Context.getVisitService();
 		locationService = Context.getLocationService();
+		obsService = Context.getObsService();
+		administrationService =	Context.getAdministrationService();
 	}
 	
 	@Override
@@ -94,8 +103,9 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			Encounter encounter = encounterService.getEncounterByUuid(encounterUuid);
 			Patient patient = encounter.getPatient();
 			Visit visit = encounter.getVisit();
-			
+
 			Obs dispositionObs = findDispositionObs(encounter);
+			
 			
 			Pair<String, String> dispositionLocationAndVisitType = findDispositionLocationAndVisitTypeMappings(dispositionObs);
 			String dispositonLocation = dispositionLocationAndVisitType.getLeft();
@@ -111,6 +121,11 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			
 			visitService.endVisit(visit, new Date());
 			visitService.saveVisit(dispositionedVisit);
+
+			if (isVisitAllowed(visit)) {
+				copyObs(encounter.getAllObs(), dispositionedVisit);
+			}
+
 			LOGGER.info("Successfully performed patient disposition.");
 			
 		}
@@ -124,6 +139,62 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		}
 	}
 	
+	private void copyObs(Set<Obs> allObs, Visit visit) {
+		String conceptsString = administrationService.getGlobalProperty("org.openmrs.module.automaticdisposition.obsConceptsToCopy");
+
+		if (conceptsString == null) {
+			return;
+		}
+
+		String[] concepts = conceptsString.split(",");
+
+		for (String concept : concepts) {
+			Obs obs = findObs(allObs, concept);
+
+			if (obs == null) {
+				continue;
+			}
+
+			Obs copiedObs = Obs.newInstance(obs);
+
+			Encounter encounter = new Encounter();
+			encounter.setEncounterDatetime(new Date());
+			encounter.setEncounterType(Context.getEncounterService().getEncounterType(2));
+			encounter.setPatient(visit.getPatient());
+			encounter.setLocation(visit.getLocation());
+
+			copiedObs.setEncounter(encounter);
+
+			/*encounter.addObs(observation);
+			visit.addEncounter(encounter);
+			
+			vs.saveVisit(visit);*/
+
+
+		}
+
+	}
+
+	private boolean isVisitAllowed(Visit visit) {
+		
+		String visitTypesString = administrationService.getGlobalProperty("org.openmrs.module.automaticdisposition.allowedVisitTypesForObsCopy");
+
+		if (visitTypesString == null) {
+			return true;
+		}
+
+		String currentVisitType = visit.getVisitType().getName();
+
+		String[] visitTypes = visitTypesString.split(",");
+
+		for (String visitType : visitTypes) {
+			if (currentVisitType.equals(visitType)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private Pair<String, String> findDispositionLocationAndVisitTypeMappings(Obs dispositionObs)
 	        throws DispositionAbortedException {
 		Concept valueCoded = dispositionObs.getValueCoded();
@@ -156,15 +227,24 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		}
 	}
 	
+	private Obs findObs(Set<Obs> obsSet, String conceptName) {
+		for (Obs obs : obsSet) {
+			String name = obs.getConcept().getName().getName();
+			
+			if (conceptName.equals(name)) {
+				return obs;
+			}
+		}
+		return null;
+	}
+
 	private Obs findDispositionObs(Encounter encounter) throws DispositionAbortedException {
 		Set<Obs> allObs = encounter.getAllObs();
 		
-		for (Obs obs : allObs) {
-			String name = obs.getConcept().getName().getName();
-			
-			if ("Disposition".equals(name)) {
-				return obs;
-			}
+		Obs disposition = findObs(allObs, "Disposition");
+		
+		if (disposition != null) {
+			return disposition;
 		}
 		
 		throw new DispositionPreconditionNotMetException("Could not find disposition obs. No action needed.");
