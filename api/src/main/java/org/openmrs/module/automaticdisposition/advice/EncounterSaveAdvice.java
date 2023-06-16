@@ -54,12 +54,12 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 	private final VisitService visitService;
 	
 	private final DefaultTransactionDefinition definition;
-
+	
 	private final ObsService obsService;
 	
 	private final LocationService locationService;
-
-	private final AdministrationService	administrationService;
+	
+	private final AdministrationService administrationService;
 	
 	public EncounterSaveAdvice() throws SQLException {
 		
@@ -71,7 +71,7 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		visitService = Context.getVisitService();
 		locationService = Context.getLocationService();
 		obsService = Context.getObsService();
-		administrationService =	Context.getAdministrationService();
+		administrationService = Context.getAdministrationService();
 	}
 	
 	@Override
@@ -103,9 +103,8 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			Encounter encounter = encounterService.getEncounterByUuid(encounterUuid);
 			Patient patient = encounter.getPatient();
 			Visit visit = encounter.getVisit();
-
-			Obs dispositionObs = findDispositionObs(encounter);
 			
+			Obs dispositionObs = findDispositionObs(encounter);
 			
 			Pair<String, String> dispositionLocationAndVisitType = findDispositionLocationAndVisitTypeMappings(dispositionObs);
 			String dispositonLocation = dispositionLocationAndVisitType.getLeft();
@@ -121,11 +120,11 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			
 			visitService.endVisit(visit, new Date());
 			visitService.saveVisit(dispositionedVisit);
-
+			
 			if (isVisitAllowed(visit)) {
 				copyObs(encounter.getAllObs(), dispositionedVisit);
 			}
-
+			
 			LOGGER.info("Successfully performed patient disposition.");
 			
 		}
@@ -140,53 +139,61 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 	}
 	
 	private void copyObs(Set<Obs> allObs, Visit visit) {
-		String conceptsString = administrationService.getGlobalProperty("org.openmrs.module.automaticdisposition.obsConceptsToCopy");
-
+		String conceptsString = administrationService.getGlobalProperty("automaticdisposition.obsConceptsToCopy");
+		
 		if (conceptsString == null) {
 			return;
 		}
-
+		
 		String[] concepts = conceptsString.split(",");
-
+		
 		for (String concept : concepts) {
 			Obs obs = findObs(allObs, concept);
-
+			
 			if (obs == null) {
 				continue;
 			}
-
-			Obs copiedObs = Obs.newInstance(obs);
-
-			Encounter encounter = new Encounter();
-			encounter.setEncounterDatetime(new Date());
-			encounter.setEncounterType(Context.getEncounterService().getEncounterType(2));
-			encounter.setPatient(visit.getPatient());
-			encounter.setLocation(visit.getLocation());
-
-			copiedObs.setEncounter(encounter);
-
-			/*encounter.addObs(observation);
-			visit.addEncounter(encounter);
 			
-			vs.saveVisit(visit);*/
-
-
+			Obs copiedObs = Obs.newInstance(obs);
+			
+			Encounter originalEncounter = copiedObs.getEncounter();
+			Patient patient = visit.getPatient();
+			Location location = visit.getLocation();
+			
+			Encounter encounter = new Encounter();
+			
+			encounter.setEncounterDatetime(new Date());
+			encounter.setEncounterType(originalEncounter.getEncounterType());
+			encounter.setPatient(patient);
+			encounter.setLocation(location);
+			
+			copiedObs.setEncounter(encounter);
+			copiedObs.setLocation(location);
+			
+			encounter.addObs(copiedObs);
+			
+			Encounter savedEncounter = encounterService.saveEncounter(encounter);
+			
+			visit.addEncounter(savedEncounter);
+			
+			visitService.saveVisit(visit);
 		}
-
+		
 	}
-
+	
 	private boolean isVisitAllowed(Visit visit) {
 		
-		String visitTypesString = administrationService.getGlobalProperty("org.openmrs.module.automaticdisposition.allowedVisitTypesForObsCopy");
-
+		String visitTypesString = administrationService
+		        .getGlobalProperty("automaticdisposition.allowedVisitTypesForObsCopy");
+		
 		if (visitTypesString == null) {
 			return true;
 		}
-
+		
 		String currentVisitType = visit.getVisitType().getName();
-
+		
 		String[] visitTypes = visitTypesString.split(",");
-
+		
 		for (String visitType : visitTypes) {
 			if (currentVisitType.equals(visitType)) {
 				return true;
@@ -194,7 +201,7 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		}
 		return false;
 	}
-
+	
 	private Pair<String, String> findDispositionLocationAndVisitTypeMappings(Obs dispositionObs)
 	        throws DispositionAbortedException {
 		Concept valueCoded = dispositionObs.getValueCoded();
@@ -229,7 +236,11 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 	
 	private Obs findObs(Set<Obs> obsSet, String conceptName) {
 		for (Obs obs : obsSet) {
-			String name = obs.getConcept().getName().getName();
+			Concept concept = obs.getConcept();
+			String c = concept.toString();
+			String cn = concept.getName().toString();
+			
+			String name = concept.getName().getName();
 			
 			if (conceptName.equals(name)) {
 				return obs;
@@ -237,7 +248,7 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		}
 		return null;
 	}
-
+	
 	private Obs findDispositionObs(Encounter encounter) throws DispositionAbortedException {
 		Set<Obs> allObs = encounter.getAllObs();
 		
