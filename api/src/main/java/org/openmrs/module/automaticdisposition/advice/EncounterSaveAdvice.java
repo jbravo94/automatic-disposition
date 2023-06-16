@@ -34,6 +34,7 @@ import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -119,10 +120,11 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			LOGGER.info("Trying to move to " + dispositonLocation + " and start visit via " + dispositonVisitType);
 			
 			visitService.endVisit(visit, new Date());
-			visitService.saveVisit(dispositionedVisit);
+			Visit savedDispositionedVisit = visitService.saveVisit(dispositionedVisit);
 			
 			if (isVisitAllowed(visit)) {
-				copyObs(encounter.getAllObs(), dispositionedVisit);
+				Set<Obs> allObs = getAllObsForVisit(visit);
+				copyObs(allObs, savedDispositionedVisit);
 			}
 			
 			LOGGER.info("Successfully performed patient disposition.");
@@ -136,6 +138,16 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		catch (DispositionAbortedException e) {
 			LOGGER.error("Disposition was aborted. Look at the stacktrace for further information.", e);
 		}
+	}
+	
+	private Set<Obs> getAllObsForVisit(Visit visit) {
+		Set<Obs> allObs = new HashSet<>();
+
+		for (Encounter encounter : visit.getEncounters()) {
+			allObs.addAll(encounter.getAllObs());
+		}
+
+		return allObs;
 	}
 	
 	private void copyObs(Set<Obs> allObs, Visit visit) {
@@ -154,11 +166,15 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 				continue;
 			}
 			
-			Obs copiedObs = Obs.newInstance(obs);
-			
-			Encounter originalEncounter = copiedObs.getEncounter();
 			Patient patient = visit.getPatient();
 			Location location = visit.getLocation();
+			Encounter originalEncounter = obs.getEncounter();
+			
+			Obs copiedObs = Obs.newInstance(obs);
+			
+			copiedObs.setLocation(location);
+			copiedObs.setEncounter(null);
+			Obs savedCopiedObs = obsService.saveObs(copiedObs, "New Obs");
 			
 			Encounter encounter = new Encounter();
 			
@@ -166,11 +182,7 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			encounter.setEncounterType(originalEncounter.getEncounterType());
 			encounter.setPatient(patient);
 			encounter.setLocation(location);
-			
-			copiedObs.setEncounter(encounter);
-			copiedObs.setLocation(location);
-			
-			encounter.addObs(copiedObs);
+			encounter.addObs(savedCopiedObs);
 			
 			Encounter savedEncounter = encounterService.saveEncounter(encounter);
 			
