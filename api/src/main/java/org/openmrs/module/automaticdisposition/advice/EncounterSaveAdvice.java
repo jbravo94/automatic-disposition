@@ -217,6 +217,10 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		for (Obs obs : allObs) {
 			Obs copiedObs = Obs.newInstance(obs);
 			
+			Date now = new Date();
+
+			copiedObs.setDateCreated(now);
+			copiedObs.setObsDatetime(now);
 			copiedObs.setLocation(location);
 			copiedObs.setEncounter(savedEncounter);
 			
