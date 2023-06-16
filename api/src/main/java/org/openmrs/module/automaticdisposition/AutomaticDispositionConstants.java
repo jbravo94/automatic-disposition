@@ -5,4 +5,7 @@ public class AutomaticDispositionConstants {
 	public final static String DISPOSITION_LOCATION_CONCEPT_SOURCE = "Disposition Location";
 	
 	public final static String DISPOSITION_VISIT_TYPE_CONCEPT_SOURCE = "Disposition Visit Type";
+	
+	public final static String DISPOSITION_COPIED_OBS_ENCOUNTER_TYPE = "Consultation";
+	
 }

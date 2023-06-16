@@ -84,8 +84,10 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			
 			TransactionStatus status = platformTransactionManager.getTransaction(definition);
 			
+			Pair<Visit, Set<Obs>> result = null;
+			
 			try {
-				executeLogicForEncounterUuid(encounterUuid);
+				result = executeLogicForEncounterUuid(encounterUuid);
 				platformTransactionManager.commit(status);
 			}
 			catch (Exception ex) {
@@ -94,10 +96,34 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 				
 				LOGGER.info("Successfully rolled back erroneous transaction.");
 			}
+			
+			if (result == null) {
+				return;
+			}
+			
+			status = platformTransactionManager.getTransaction(definition);
+			
+			try {
+				Visit visit = result.getLeft();
+				Set<Obs> obs = result.getRight();
+				
+				if (isVisitAllowed(visit)) {
+					addObs(obs, visit);
+				}
+				
+				platformTransactionManager.commit(status);
+			}
+			catch (Exception ex) {
+				LOGGER.error("Error occured in transaction. Trying to rollback.", ex);
+				platformTransactionManager.rollback(status);
+				
+				LOGGER.info("Successfully rolled back erroneous transaction.");
+			}
+			
 		}
 	}
 	
-	private void executeLogicForEncounterUuid(String encounterUuid) {
+	private Pair<Visit, Set<Obs>> executeLogicForEncounterUuid(String encounterUuid) {
 		LOGGER.info("Starting patient disposition.");
 		
 		try {
@@ -122,13 +148,11 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			visitService.endVisit(visit, new Date());
 			Visit savedDispositionedVisit = visitService.saveVisit(dispositionedVisit);
 			
-			if (isVisitAllowed(visit)) {
-				Set<Obs> allObs = getAllObsForVisit(visit);
-				copyObs(allObs, savedDispositionedVisit);
-			}
+			Set<Obs> obsToCopy = getFilteredObs(getAllObsForVisit(visit));
 			
 			LOGGER.info("Successfully performed patient disposition.");
 			
+			return Pair.of(savedDispositionedVisit, obsToCopy);
 		}
 		catch (DispositionPreconditionNotMetException e) {
 			LOGGER.info(
@@ -138,6 +162,8 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		catch (DispositionAbortedException e) {
 			LOGGER.error("Disposition was aborted. Look at the stacktrace for further information.", e);
 		}
+		
+		return null;
 	}
 	
 	private Set<Obs> getAllObsForVisit(Visit visit) {
@@ -150,11 +176,13 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 		return allObs;
 	}
 	
-	private void copyObs(Set<Obs> allObs, Visit visit) {
+	private Set<Obs> getFilteredObs(Set<Obs> allObs){
+		Set<Obs> filteredObs = new HashSet<>();
+		
 		String conceptsString = administrationService.getGlobalProperty("automaticdisposition.obsConceptsToCopy");
 		
 		if (conceptsString == null) {
-			return;
+			return filteredObs;
 		}
 		
 		String[] concepts = conceptsString.split(",");
@@ -165,32 +193,42 @@ public class EncounterSaveAdvice implements AfterReturningAdvice {
 			if (obs == null) {
 				continue;
 			}
-			
-			Patient patient = visit.getPatient();
-			Location location = visit.getLocation();
-			Encounter originalEncounter = obs.getEncounter();
-			
+
+			filteredObs.add(obs);
+		}
+		
+		return filteredObs;
+	}
+	
+	private void addObs(Set<Obs> allObs, Visit visit) {
+		
+		Patient patient = visit.getPatient();
+		Location location = visit.getLocation();
+		
+		Encounter encounter = new Encounter();
+		
+		encounter.setEncounterDatetime(new Date());
+		encounter.setEncounterType(encounterService.getEncounterType(DISPOSITION_COPIED_OBS_ENCOUNTER_TYPE));
+		encounter.setPatient(patient);
+		encounter.setLocation(location);
+		
+		Encounter savedEncounter = encounterService.saveEncounter(encounter);
+		
+		for (Obs obs : allObs) {
 			Obs copiedObs = Obs.newInstance(obs);
 			
 			copiedObs.setLocation(location);
-			copiedObs.setEncounter(null);
+			copiedObs.setEncounter(savedEncounter);
+			
 			Obs savedCopiedObs = obsService.saveObs(copiedObs, "New Obs");
-			
-			Encounter encounter = new Encounter();
-			
-			encounter.setEncounterDatetime(new Date());
-			encounter.setEncounterType(originalEncounter.getEncounterType());
-			encounter.setPatient(patient);
-			encounter.setLocation(location);
-			encounter.addObs(savedCopiedObs);
-			
-			Encounter savedEncounter = encounterService.saveEncounter(encounter);
-			
-			visit.addEncounter(savedEncounter);
-			
-			visitService.saveVisit(visit);
+			savedEncounter.addObs(savedCopiedObs);
 		}
 		
+		savedEncounter = encounterService.saveEncounter(encounter);
+		
+		visit.addEncounter(savedEncounter);
+		
+		visitService.saveVisit(visit);
 	}
 	
 	private boolean isVisitAllowed(Visit visit) {

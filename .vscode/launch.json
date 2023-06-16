@@ -7,7 +7,7 @@
         {
             "type": "java",
             "name": "Debug (Attach)",
-            "projectName": "Automatic Disposition",
+            "projectName": "automaticdisposition",
             "request": "attach",
             "hostName": "localhost",
             "port": 1044
